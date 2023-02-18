@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Creating Phonebook Application In Cloudformation Format
+Parameters:
+  pVpcId:
+    Description: VPC for Ec2
+    Type: AWS::EC2::VPC::Id
+
+  pImageId:
+    Description: 
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>  # found this doc. from SSM prameter types page.
+    Default: '/ ' 
+Resources:
+  
+Outputs:

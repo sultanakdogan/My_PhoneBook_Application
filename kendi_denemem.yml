@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  CloudFormation for PhoneBook App.
+
+Parameters:
+  pVpcID:
+    Description: VPC for EC2
+    Type: AWS::EC2::VPC::Id
+
+  pImageID:
+    Description: ImageID list
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+
+  pKeyPair:
+    Description: 
+    Type: AWS::EC2::KeyPair::KeyName
+
+  pSubnets:
+    Description: 
+    Type: List<AWS::EC2::Subnet::Id>
+   
+Resources:
+  rWebServerSec:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SHH and HTTP Ports # Required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22 
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Value: MyTemplateSec
+          Key: Name
+      VpcId: !Ref pVpcID
+
+
+  rMyTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref pImageID
+        InstanceType: t2.micro
+        KeyName: !Ref pKeyPair
+        SecurityGroupIds: 
+          - !GetAtt rWebServerSec.GroupId
+        UserData: 
+          Fn::Base64:
+            !Sub 
+              - |
+                #! /bin/bash -x
+                yum update -y
+                yum install python3 -y
+                pip3 install flask
+                pip3 install flask_mysql
+                echo "${MyDBURI}" > /home/ec2-user/dbserver.endpoint
+                TOKEN="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"
+                FOLDER="https://$TOKEN@raw.githubusercontent.com/altazbhanji/myphonebook2/main/Project-004-Phonebook-Application/"
+                curl -s --create-dirs -o "/home/ec2-user/templates/index.html" -L "$FOLDER"templates/index.html
+                curl -s --create-dirs -o "/home/ec2-user/templates/add-update.html" -L "$FOLDER"templates/add-update.html
+                curl -s --create-dirs -o "/home/ec2-user/templates/delete.html" -L "$FOLDER"templates/delete.html
+                curl -s --create-dirs -o "/home/ec2-user/phonebook-app.py" -L "$FOLDER"phonebook-app.py
+                python3 /home/ec2-user/phonebook-app.py
+              - MyDBURI: !GetAtt rDatabaseServer.Endpoint.Address
+        LaunchTemplateName: PhoneBook.App
+  rDBsecurity:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      DBSecurityGroupIngress: # Required
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+      
+      GroupDescription: RDS port 3306 # Required
+      Tags:
+        Tags
+
+  rDatabaseServer:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: "20"
+      DBInstanceClass: db.t3.micro
+      DBInstanceIdentifier: Clarusway.db
+      DBName: MyPhoneBook
+      DBSecurityGroups:
+        DBSecurityGroups
+      Engine: mysql
+      EngineVersion: 8.0.28
+      MasterUserPassword: sultan21
+      MasterUsername: Sultan
+      Port: 3306
+      PubliclyAccessible: true
+      VPCSecurityGroups:
+        - !GetAtt rDBsecurity.Group.Id
